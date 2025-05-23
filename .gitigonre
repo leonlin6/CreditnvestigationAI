@@ -1,0 +1,53 @@
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Build output
+dist/
+build/
+
+# Dependency directories
+.babel-cache/
+.cache/
+.next/
+out/
+
+# dotenv environment variables
+.env
+.env.test
+.env.*.local
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Optional: coverage and reports
+coverage/
+*.lcov
+
+# Optional: database
+*.sqlite
+*.sqlite3
+*.db
+
+# Optional: local uploads/temp
+uploads/
+tmp/
+temp/
