@@ -22,6 +22,7 @@
     "typeorm": "^0.3.23"
   },
   "devDependencies": {
+    "express": "^5.1.0",
     "tsx": "^4.19.4"
   }
 }
