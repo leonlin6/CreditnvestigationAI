@@ -20,6 +20,12 @@ import {
 import { QuerySqlTool } from "langchain/tools/sql";
 import { mapTable } from "./TableNameMapFile.ts";
 
+// 定義TableCellDataType的interface
+interface TableCellDataType {
+  Title: string;
+  Content: string;
+}
+
 export const excuteNewDoc = async (
   year: number,
   gui_no: string,
@@ -27,6 +33,7 @@ export const excuteNewDoc = async (
   db: any
 ) => {
   const dbTableNameMapping = {
+    company_profile: "company_profile",
     income_statement: "income_statement",
     balance_sheet: "balance_sheet",
     financial_ratios: "financial_ratios",
@@ -34,23 +41,72 @@ export const excuteNewDoc = async (
     customer_transaction: "customer_transaction",
   };
 
+  // 從DB撈公司的company name來組成項目資訊
+  // 從DB撈公司的基本資料來組成Content
+  const companyProfileTableName = dbTableNameMapping["company_profile"];
+  const subjectSqlQueryStatement = `SELECT full_name_zhtw FROM ${companyProfileTableName} WHERE gui_no = ${gui_no};`;
+  const companyProfileSqlQueryStatement = `SELECT stock_code,full_name_zhtw,short_name_zhtw,gui_no,address_zhtw,phone,fax,website,email,industry_main,industry_sub,industry_national,ceo,capital,employee_count,founded_date,business_scope,accountant_firm,accountants,board_shareholding_ratio,board_pledge_ratio,listed_market,par_value,ipo_date,avg_60d_price,avg_60d_volume FROM ${companyProfileTableName} WHERE gui_no = ${gui_no};`;
+
+  
   // 從DB撈資產負債分析、財務比率分析的資料來組成Content
   const financialRatiosTableName = dbTableNameMapping["financial_ratios"];
   const balanceSheetTableName = dbTableNameMapping["balance_sheet"];
 
-  const balanceSheetSqlQueryStatement = `SELECT year,quarter,retained_earnings,other_accounts_receivable,other_current_assets,inventory,accounts_receivable,total_equity,current_liabilities,current_assets,cash,capital_stock,total_liabilities_and_equity,capital_reserve,total_assets,non_current_liabilities,non_current_assets FROM ${balanceSheetTableName} WHERE year = ${year} AND gui_no = ${gui_no} ORDER BY quarter ASC;;`;
-  const financialRatiosSqlQueryStatement = `SELECT year,gui_no,average_collection_period ,total_asset_turnover,roe DECIMAL,average_days_sales_outstanding,net_profit_margin,debt_to_asset_ratio,pre_tax_profit_to_capital_ratio,long_term_capital_to_fixed_assets_ratio,current_ratio,interest_coverage_ratio,roa,cash_reinvestment_ratio,cash_adequacy_ratio,quick_ratio,accounts_receivable_turnover,fixed_assets_turnover,inventory_turnover,cash_flow_ratio,eps  FROM ${financialRatiosTableName} WHERE year =${year} AND gui_no = ${gui_no} ;`;
+  const balanceSheetSqlQueryStatement = `SELECT year,quarter,retained_earnings,other_accounts_receivable,other_current_assets,inventory,accounts_receivable,total_equity,current_liabilities,current_assets,cash,capital_stock,total_liabilities_and_equity,capital_reserve,total_assets,non_current_liabilities,non_current_assets FROM ${balanceSheetTableName} WHERE year = ${year} AND gui_no = ${gui_no} ORDER BY quarter ASC;`;
+  const financialRatiosSqlQueryStatement = `SELECT year,gui_no,average_collection_period ,total_asset_turnover,roe DECIMAL,average_days_sales_outstanding,net_profit_margin,debt_to_asset_ratio,pre_tax_profit_to_capital_ratio,long_term_capital_to_fixed_assets_ratio,current_ratio,interest_coverage_ratio,roa,cash_reinvestment_ratio,cash_adequacy_ratio,quick_ratio,accounts_receivable_turnover,fixed_assets_turnover,inventory_turnover,cash_flow_ratio,eps FROM ${financialRatiosTableName} WHERE year =${year} AND gui_no = ${gui_no} ;`;
 
+  // 用langchain的工具建立一個QuerySqlTool，用來執行SQL查詢
   const executeQueryTool = new QuerySqlTool(db);
 
+  // 執行項目資訊的SQL查詢
+  const subjectResult = await executeQueryTool.invoke(
+    subjectSqlQueryStatement
+  );
+  
+  const parsedSubjectResult = JSON.parse(subjectResult);
+  const subjectMappedData = Object.keys(
+    parsedSubjectResult[0]
+  ).map((item, key) => {
+    return {
+      Title: mapTable.subjectMap[item],
+      Content: parsedSubjectResult[0][item],
+    };
+  });
+
+  //手動寫死push生成項目進來
+  subjectMappedData.push(
+    { Title: "生成項目", Content: "基本資料、資產負債分析、財務比率分析" },
+  );
+
+   // 執行公司基本資料的SQL查詢
+   const companyProfileResult = await executeQueryTool.invoke(
+    companyProfileSqlQueryStatement
+  );
+
+  const parsedCompanyProfileResult = JSON.parse(companyProfileResult);
+  const companyProfileMappedData = Object.keys(
+    parsedCompanyProfileResult[0]
+  ).map((item, key) => {
+
+    if(typeof parsedCompanyProfileResult[0][item] === 'number'){
+      return {
+        Title: mapTable.companyProfileMap[item],
+        Content: parsedCompanyProfileResult[0][item].toLocaleString(),
+      };
+    }else{
+      return {
+        Title: mapTable.companyProfileMap[item],
+        Content: parsedCompanyProfileResult[0][item],
+      };
+    }
+  });
+
+  // 執行資產負債分析的SQL查詢
   const balanceSheetResult = await executeQueryTool.invoke(
     balanceSheetSqlQueryStatement
   );
   const parsedBalanceSheetResult = JSON.parse(balanceSheetResult);
-  interface TableCellDataType {
-    Title: string;
-    Content: string;
-  }
+
 
   let balanceSheetMappedData: {
     Q1: TableCellDataType[];
@@ -68,40 +124,45 @@ export const excuteNewDoc = async (
     switch (item.quarter) {
       case 1:
         const Q1Data = Object.keys(item).map((it, key) => {
-          const test = item[it].toLocaleString('en-US', {
-            style: 'currency',
-            currency: 'USD',
-          }); 
+          // 將數字轉換成千分位格式，並轉成string格式
+          const formattedNumber = item[it].toLocaleString(); 
+
           return {
             Title: mapTable.balanceSheetMap[it],
-            Content:test,
+            Content:formattedNumber,
           };
         });
         balanceSheetMappedData.Q1 = Q1Data;
         break;
       case 2:
         const Q2Data = Object.keys(item).map((it, key) => {
+          const formattedNumber = item[it].toLocaleString(); 
+
           return {
             Title: mapTable.balanceSheetMap[it],
-            Content: item[it],
+            Content: formattedNumber,
           };
         });
         balanceSheetMappedData.Q2 = Q2Data;
         break;
       case 3:
         const Q3Data = Object.keys(item).map((it, key) => {
+          const formattedNumber = item[it].toLocaleString(); 
+
           return {
             Title: mapTable.balanceSheetMap[it],
-            Content: item[it],
+            Content:formattedNumber,
           };
         });
         balanceSheetMappedData.Q3 = Q3Data;
         break;
       case 4:
         const Q4Data = Object.keys(item).map((it, key) => {
+          const formattedNumber = item[it].toLocaleString(); 
+
           return {
             Title: mapTable.balanceSheetMap[it],
-            Content: item[it],
+            Content: formattedNumber,
           };
         });
         balanceSheetMappedData.Q4 = Q4Data;
@@ -112,8 +173,7 @@ export const excuteNewDoc = async (
     }
   });
 
-  console.log("balanceSheetMappedData=======", balanceSheetMappedData);
-
+  // 執行財務比率分析的SQL查詢
   const financialRatiosResult = await executeQueryTool.invoke(
     financialRatiosSqlQueryStatement
   );
@@ -121,6 +181,7 @@ export const excuteNewDoc = async (
   const financialRatiosMappedData = Object.keys(
     parsedFinancialRatiosResult[0]
   ).map((item, key) => {
+    
     return {
       Title: mapTable.financialRatiosMap[item],
       Content: parsedFinancialRatiosResult[0][item],
@@ -144,10 +205,11 @@ export const excuteNewDoc = async (
       return runs;
     });
 
-  // 項目資訊：寫死資料
+  // 組成項目資訊
+  // 生成項目為固定的：基本資料、資產負債分析、財務比率分析
   const SubjectDummyArr = [
-    { Title: "測試標的", Content: "誠美材料科技" },
-    { Title: "生成項目", Content: "基本資、財務比率分析" },
+    { Title: "測試標的", Content: 'subjectCompanyName' },
+    { Title: "生成項目", Content: "基本資料、資產負債分析、財務比率分析" },
   ];
 
   // 公司基礎資訊：寫死資料
@@ -377,7 +439,7 @@ export const excuteNewDoc = async (
   ];
 
   // 項目資訊: 內容TABLE
-  const SubjectContentArray = SubjectDummyArr.map((item) => {
+  const SubjectContentArray = subjectMappedData.map((item) => {
     const content = [
       new TableCell({
         width: { size: 2000 },
@@ -576,7 +638,7 @@ export const excuteNewDoc = async (
   ];
 
   // 公司基本資料-基本資料表-中文資訊：把內容物從ARRAY中塞入TABLE中，用mpas組成陣列
-  const CompanyInformationContentArray = CompanyInformationDummyArr.map(
+  const CompanyInformationContentArray = companyProfileMappedData.map(
     (item) => {
       const content = [
         new TableCell({
@@ -862,7 +924,7 @@ export const excuteNewDoc = async (
             alignment: "right",
             children: [
               new TextRun({
-                text: JSON.stringify(item.Content),
+                text: item.Content,
                 size: 24,
               }),
             ],
@@ -960,7 +1022,7 @@ export const excuteNewDoc = async (
 
             children: [
               new TextRun({
-                text: JSON.stringify(item.Content),
+                text: item.Content,
                 size: 24,
               }),
             ],
@@ -1058,7 +1120,7 @@ export const excuteNewDoc = async (
 
             children: [
               new TextRun({
-                text: JSON.stringify(item.Content),
+                text: item.Content,
                 size: 24,
               }),
             ],
@@ -1156,7 +1218,7 @@ export const excuteNewDoc = async (
 
             children: [
               new TextRun({
-                text: JSON.stringify(item.Content),
+                text: item.Content,
                 size: 24,
               }),
             ],
@@ -1579,6 +1641,7 @@ export const excuteNewDoc = async (
             },
             rows: FinancialRatiosFinalArray,
           }),
+          new Paragraph({ children: [new TextRun({ break: 2 })] }),
           new Paragraph({
             children: refactoredSummaryChildren,
           }),

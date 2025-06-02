@@ -21,7 +21,6 @@ import { $ } from "execa";
 // import { excuteNewDoc } from './TableTransfer.ts';
 import EvaluationRulePrompt from "./EvaluationRulePrompt.ts";
 
-
 interface SummaryContainerObject {
   income_statement: string;
   balance_sheet: string;
@@ -31,23 +30,23 @@ interface SummaryContainerObject {
 }
 
 const dbTableNameMapping = {
-  income_statement:'income_statement',
-  balance_sheet:'balance_sheet',
-  financial_ratios:'financial_ratios',
-  cash_flow_statement:'cash_flow_statement',
-  customer_transaction:'customer_transaction',
-}
+  income_statement: "income_statement",
+  balance_sheet: "balance_sheet",
+  financial_ratios: "financial_ratios",
+  cash_flow_statement: "cash_flow_statement",
+  customer_transaction: "customer_transaction",
+};
 // Declare
 const GenerateReportAnnotation = Annotation.Root({
-  year:Annotation<number>,
-  gui_no:Annotation<string>,
+  year: Annotation<number>,
+  gui_no: Annotation<string>,
   question: Annotation<string>,
   chapter: Annotation<string>,
   query: Annotation<string>,
   result: Annotation<string>,
   answer: Annotation<string>,
   summary: Annotation<string>,
-  container: Annotation<SummaryContainerObject>
+  container: Annotation<SummaryContainerObject>,
 });
 
 // const chapters = [
@@ -86,8 +85,6 @@ const chatOpenAImodel = new ChatOpenAI({
 //   console.log("Server running at http://localhost:5001/");
 // });
 
-
-
 // declare db configure
 const creditDatasource = new DataSource({
   type: "sqlite",
@@ -108,7 +105,6 @@ const commentObjectQueryOutput = z.object({
 });
 // declare llm which using withStructuredOutput : sql format
 const sqlStructuredLlm = chatOpenAImodel.withStructuredOutput(sqpQueryOutput);
-
 
 // condtion edge function
 const distiguishType = (state) => {
@@ -138,12 +134,11 @@ const generate_sql = async (state: typeof GenerateReportAnnotation.State) => {
   // const year = 2024;
   // const gui_no = '27790294';
   const dbTableName = dbTableNameMapping[state.chapter];
-  const sqlQueryStatement = `SELECT * FROM ${dbTableName} WHERE year =${state.year} AND gui_no = ${state.gui_no};`
-
+  const sqlQueryStatement = `SELECT * FROM ${dbTableName} WHERE year =${state.year} AND gui_no = ${state.gui_no};`;
 
   return {
-    year:state.year,
-    gui_no:state.gui_no,
+    year: state.year,
+    gui_no: state.gui_no,
     question: state.question,
     chapter: state.chapter,
     query: sqlQueryStatement,
@@ -157,23 +152,21 @@ const generate_sql = async (state: typeof GenerateReportAnnotation.State) => {
 const obtain_data = async (state: typeof GenerateReportAnnotation.State) => {
   const executeQueryTool = new QuerySqlTool(db);
   const result = await executeQueryTool.invoke(state.query);
-  console.log('obtain_data================  ',result);
+  console.log("obtain_data================  ", result);
   return {
     ...state,
     result: result,
   };
 };
 
-
 // node function：將產出的文字內容，依object格式存起來，最後再一併產成docx
 const import_into_container = async (
   state: typeof GenerateReportAnnotation.State
 ) => {
   const generatingSummaryPrompt =
-    `Use the following information to generate a Comprehensive review withdata number. And Don't use markdown format as response format.`+
+    `Use the following information to generate a Comprehensive review withdata number. And Don't use markdown format as response format.` +
     `Information ${state.answer}` +
     `And then transfer the review from engilsh into traditional chinese.`;
-    
 
   const summary = await chatOpenAImodel.invoke(generatingSummaryPrompt);
 
@@ -189,7 +182,9 @@ const import_into_container = async (
 
 // financial_ratios node
 // 根據不同chapter，來拿取不同的欄位資料，以編寫不同的prompt來產出對應的LLM分析結果
-const financial_ratios = async (state: typeof GenerateReportAnnotation.State) => {
+const financial_ratios = async (
+  state: typeof GenerateReportAnnotation.State
+) => {
   const parsedJson = JSON.parse(state.result);
   const str = JSON.stringify(parsedJson[0]);
   const generatingAnswerPrompt =
@@ -199,7 +194,7 @@ const financial_ratios = async (state: typeof GenerateReportAnnotation.State) =>
     `Question: Please establish two comment. Comment A use source of debt_to_asset_ratio, current_ratio, quick_ratio, roa and roe in the ${str} and only following rules.` +
     `Adding % mark after numerical value on Comment A.` +
     `Comment B use source of accounts_receivable_turnover, nventory_turnover, total_asset_turnover in the ${str} and only following rules.` +
-    `Don't Add % mark after numerical value on Comment B.` +   
+    `Don't Add % mark after numerical value on Comment B.` +
     `Rules:` +
     `debt_to_asset_ratio: ${EvaluationRulePrompt.debt_to_asset_ratio_rule}` +
     `current_ratio_rule: ${EvaluationRulePrompt.current_ratio_rule}` +
@@ -229,7 +224,6 @@ const graph = new StateGraph(GenerateReportAnnotation)
   // .addNode("customer_transaction", customer_transaction)
   .addNode("import_into_container", import_into_container)
 
-
   .addEdge("__start__", "generate_sql")
   .addEdge("generate_sql", "obtain_data")
   .addConditionalEdges("obtain_data", distiguishType)
@@ -245,7 +239,7 @@ const graph = new StateGraph(GenerateReportAnnotation)
 dotenv.config();
 
 // 一鍵生成報告，依chapter跑迴圈執行，產出每個章節的數據表格與AI建議文字
-export async function establishReport(year:number , gui_no: string) {
+export async function establishReport(year: number, gui_no: string) {
   for (let chapter of chapters) {
     const userInputResponse: string = await new Promise(async (resolve) => {
       const result = await graph.invoke({
@@ -266,8 +260,7 @@ export async function establishReport(year:number , gui_no: string) {
 
     try {
       console.log(`\nThe chapter ${chapter} is finished.\n`);
-      console.log(`\nuserInputResponse-----\n`,userInputResponse);
-  
+      console.log(`\nuserInputResponse-----\n`, userInputResponse);
 
       return userInputResponse;
     } catch (error) {
@@ -276,39 +269,36 @@ export async function establishReport(year:number , gui_no: string) {
   }
 }
 
-import {excuteNewDoc} from "./TableTransfer.ts";
-// const response = await establishReport(2024, '27790294')
-// .catch((err)=>{
-//   console.log(err);
-//   return err.message;
-// });
+import { excuteNewDoc } from "./TableTransfer.ts";
+const response = await establishReport(2024, "27790294").catch((err) => {
+  console.log(err);
+  return err.message;
+});
 
 // await excuteNewDoc(response);
-await excuteNewDoc(2024, '27790294','',db);
-
+await excuteNewDoc(2024, "27790294", response, db);
 
 // express API Server handler
 // import express from 'express';
 // const app = express()
 // const port = 3000
 
-// app.use(express.json());  
+// app.use(express.json());
 
 // app.get('/', (req, res) => {
 //   res.send('Hello World!')
 // })
 
-
 // app.post('/establishReport', async function (req, res, next) {
-  
+
 //   if (!req.body){
 //     return res.sendStatus(400);
-//   } 
+//   }
 
 //   const response = await establishReport(req.body.year, req.body.gui_no).catch(console.error);
 
 //   res.send(`establishReport finish ${response}` )
-  
+
 // });
 
 // app.listen(port, () => {
