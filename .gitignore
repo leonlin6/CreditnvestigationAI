@@ -43,9 +43,9 @@ coverage/
 *.lcov
 
 # Optional: database
-*.sqlite
-*.sqlite3
-*.db
+# *.sqlite
+# *.sqlite3
+# *.db
 
 # Optional: local uploads/temp
 uploads/
