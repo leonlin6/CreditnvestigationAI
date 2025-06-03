@@ -290,16 +290,15 @@ import cors from 'cors';
 const app = express()
 const port = 3000
 
-// const corsOptions = {
-//   origin: [
-//     'http://localhost:3000',
-//     'http://localhost:3001',
-//   ],
-//   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-//   allowedHeaders: ['Content-Type', 'Authorization'],
-// };
+const corsOptions = {
+  origin: [
+    'https://web-creditnvestigation-70fhvfear-leonlin6s-projects-5cda9579',
+  ],
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
 
-// app.use(cors(corsOptions));
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.get('/api/report', async (req, res) => {
