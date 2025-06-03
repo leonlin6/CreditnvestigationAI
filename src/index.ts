@@ -294,6 +294,7 @@ const corsOptions = {
   origin: [
     'https://web-creditnvestigation-70fhvfear-leonlin6s-projects-5cda9579',
     'https://web-creditnvestigation-70fhvfear-leonlin6s-projects-5cda9579.vercel.app',
+    "https://web-creditnvestigation-ai.vercel.app"
   ],
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   allowedHeaders: ['Content-Type', 'Authorization'],
