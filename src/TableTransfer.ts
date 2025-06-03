@@ -18,7 +18,7 @@ import {
   ShadingType,
 } from "docx";
 import { QuerySqlTool } from "langchain/tools/sql";
-import { mapTable } from "./TableNameMapFile.ts";
+import { mapTable } from "./TableNameMapFile.js";
 import { resolve } from "path";
 
 // 定義TableCellDataType的interface

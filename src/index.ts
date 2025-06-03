@@ -19,7 +19,7 @@ import sqlite3 from "sqlite3";
 import fs from "fs";
 import { $ } from "execa";
 // import { excuteNewDoc } from './TableTransfer.ts';
-import EvaluationRulePrompt from "./EvaluationRulePrompt.ts";
+import EvaluationRulePrompt from "./EvaluationRulePrompt.js";
 
 interface SummaryContainerObject {
   income_statement: string;
@@ -29,7 +29,16 @@ interface SummaryContainerObject {
   customer_transaction: string;
 }
 
-const dbTableNameMapping = {
+interface DBTableNameObject {
+  [key: string]: string;
+  income_statement: string;
+  balance_sheet: string;
+  financial_ratios: string;
+  cash_flow_statement: string;
+  customer_transaction: string;
+}
+
+const dbTableNameMapping: DBTableNameObject = {
   income_statement: "income_statement",
   balance_sheet: "balance_sheet",
   financial_ratios: "financial_ratios",
@@ -107,7 +116,7 @@ const commentObjectQueryOutput = z.object({
 const sqlStructuredLlm = chatOpenAImodel.withStructuredOutput(sqpQueryOutput);
 
 // condtion edge function
-const distiguishType = (state) => {
+const distiguishType = (state: typeof GenerateReportAnnotation.State) => {
   switch (state.chapter) {
     case "income_statement":
       return "income_statement";
@@ -121,7 +130,6 @@ const distiguishType = (state) => {
       return "customer_transaction";
     default:
       return "__end__";
-      break;
   }
 };
 
@@ -133,7 +141,8 @@ const queryPromptTemplate = await pull("langchain-ai/sql-query-system-prompt");
 const generate_sql = async (state: typeof GenerateReportAnnotation.State) => {
   // const year = 2024;
   // const gui_no = '27790294';
-  const dbTableName = dbTableNameMapping[state.chapter];
+  const chapter = state.chapter;
+  const dbTableName = dbTableNameMapping[chapter];
   const sqlQueryStatement = `SELECT * FROM ${dbTableName} WHERE year =${state.year} AND gui_no = ${state.gui_no};`;
 
   return {
@@ -152,7 +161,6 @@ const generate_sql = async (state: typeof GenerateReportAnnotation.State) => {
 const obtain_data = async (state: typeof GenerateReportAnnotation.State) => {
   const executeQueryTool = new QuerySqlTool(db);
   const result = await executeQueryTool.invoke(state.query);
-  console.log("obtain_data================  ", result);
   return {
     ...state,
     result: result,
@@ -262,12 +270,12 @@ export async function establishReport(year: number, gui_no: string) {
 
       return userInputResponse;
     } catch (error) {
-      console.error("An error occurred:", error.message);
+      console.error("An error occurred:");
     }
   }
 }
 
-import { excuteNewDoc } from "./TableTransfer.ts";
+import { excuteNewDoc } from "./TableTransfer.js";
 // const response = await establishReport(2024, "27790294").catch((err) => {
 //   console.log(err);
 //   return err.message;
@@ -337,9 +345,9 @@ app.get('/api/companies/name', async (req, res) => {
 
   const parsedResult = JSON.parse(result);
 
-  const companyNameList = parsedResult.map((item)=>{
-    return item.full_name_zhtw
-  })
+  const companyNameList = parsedResult.map((item: { full_name_zhtw: string }) => {
+    return item.full_name_zhtw;
+  });
   
   res.send(companyNameList);
 })
