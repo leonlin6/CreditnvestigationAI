@@ -19,6 +19,7 @@ import {
 } from "docx";
 import { QuerySqlTool } from "langchain/tools/sql";
 import { mapTable } from "./TableNameMapFile.ts";
+import { resolve } from "path";
 
 // 定義TableCellDataType的interface
 interface TableCellDataType {
@@ -1650,7 +1651,12 @@ export const excuteNewDoc = async (
     ],
   });
 
-  Packer.toBuffer(doc).then((buffer) => {
-    fs.writeFileSync("My Document.docx", buffer);
-  });
+  // 重複呼叫Packer.toBuffer會造成doc變動，造成後續buffer產出的文件會損毀，要注意
+  // await Packer.toBuffer(doc).then((buffer) => {
+  //   fs.writeFileSync("My Document.docx", buffer);
+  // });
+
+
+  const buffer = await Packer.toBuffer(doc);
+  return buffer;
 };

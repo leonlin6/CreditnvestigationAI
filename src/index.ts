@@ -259,8 +259,6 @@ export async function establishReport(year: number, gui_no: string) {
     });
 
     try {
-      console.log(`\nThe chapter ${chapter} is finished.\n`);
-      console.log(`\nuserInputResponse-----\n`, userInputResponse);
 
       return userInputResponse;
     } catch (error) {
@@ -270,37 +268,82 @@ export async function establishReport(year: number, gui_no: string) {
 }
 
 import { excuteNewDoc } from "./TableTransfer.ts";
-const response = await establishReport(2024, "27790294").catch((err) => {
-  console.log(err);
-  return err.message;
-});
-
-// await excuteNewDoc(response);
-await excuteNewDoc(2024, "27790294", response, db);
-
-// express API Server handler
-// import express from 'express';
-// const app = express()
-// const port = 3000
-
-// app.use(express.json());
-
-// app.get('/', (req, res) => {
-//   res.send('Hello World!')
-// })
-
-// app.post('/establishReport', async function (req, res, next) {
-
-//   if (!req.body){
-//     return res.sendStatus(400);
-//   }
-
-//   const response = await establishReport(req.body.year, req.body.gui_no).catch(console.error);
-
-//   res.send(`establishReport finish ${response}` )
-
+// const response = await establishReport(2024, "27790294").catch((err) => {
+//   console.log(err);
+//   return err.message;
 // });
 
-// app.listen(port, () => {
-//   console.log(`Example app listening on port ${port}`)
-// })
+// await excuteNewDoc(response);
+// await excuteNewDoc(2024, "27790294", response, db);
+
+// express API Server handler
+import express from 'express';
+import cors from 'cors';
+const app = express()
+const port = 3000
+
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+  ],
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
+app.use(express.json());
+
+app.get('/api/report', async (req, res) => {
+  const { year, companyName } = req.query;
+  
+  if (!year || !companyName) {
+    return res.status(400).json({ error: 'Year and company name are required' });
+  }
+
+  try {
+    const sqlQueryStatement = `SELECT gui_no FROM company_profile WHERE full_name_zhtw = '${companyName}';`;
+    const executeQueryTool = new QuerySqlTool(db);
+    const result = await executeQueryTool.invoke(sqlQueryStatement);
+    const parsedResult = JSON.parse(result);
+    
+    if (!parsedResult || parsedResult.length === 0) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    const gui_no = parsedResult[0].gui_no;
+    const report = await establishReport(Number(year), gui_no).catch((err) => {
+      console.log(err);
+      return err.message;
+    });
+    
+    const buffer = await excuteNewDoc(Number(year), gui_no, report, db);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', 'attachment;');
+  
+    // 傳送 buffer
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error processing request:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+})
+
+
+app.get('/api/companies/name', async (req, res) => {
+  const sqlQueryStatement = `SELECT full_name_zhtw FROM company_profile ;`;
+  const executeQueryTool = new QuerySqlTool(db);
+  const result = await executeQueryTool.invoke(sqlQueryStatement);
+
+  const parsedResult = JSON.parse(result);
+
+  const companyNameList = parsedResult.map((item)=>{
+    return item.full_name_zhtw
+  })
+  
+  res.send(companyNameList);
+})
+
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}`)
+})
