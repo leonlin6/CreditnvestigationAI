@@ -16,6 +16,7 @@ import {
   WidthType,
   BorderStyle,
   ShadingType,
+  AlignmentType,
 } from "docx";
 import { QuerySqlTool } from "langchain/tools/sql";
 import { mapTable } from "./TableNameMapFile.js";
@@ -42,13 +43,17 @@ export const excuteNewDoc = async (
     customer_transaction: "customer_transaction",
   };
 
+  // Varaible
+  let companyNameTitle = "";
   // 從DB撈公司的company name來組成項目資訊
   // 從DB撈公司的基本資料來組成Content
   const companyProfileTableName = dbTableNameMapping["company_profile"];
   const subjectSqlQueryStatement = `SELECT full_name_zhtw FROM ${companyProfileTableName} WHERE gui_no = ${gui_no};`;
   const companyProfileSqlQueryStatement = `SELECT stock_code,full_name_zhtw,short_name_zhtw,gui_no,address_zhtw,phone,fax,website,email,industry_main,industry_sub,industry_national,ceo,capital,employee_count,founded_date,business_scope,accountant_firm,accountants,board_shareholding_ratio,board_pledge_ratio,listed_market,par_value,ipo_date,avg_60d_price,avg_60d_volume FROM ${companyProfileTableName} WHERE gui_no = ${gui_no};`;
+  const companyEnProfileSqlQueryStatement = `SELECT full_name_enus,short_name_enus,address_enus FROM ${companyProfileTableName} WHERE gui_no = ${gui_no};`;
+  const companyOtherProfileSqlQueryStatement = `SELECT management_team,registration_change_record,investment_projects FROM ${companyProfileTableName} WHERE gui_no = ${gui_no};`;
 
-  
+
   // 從DB撈資產負債分析、財務比率分析的資料來組成Content
   const financialRatiosTableName = dbTableNameMapping["financial_ratios"];
   const balanceSheetTableName = dbTableNameMapping["balance_sheet"];
@@ -60,41 +65,54 @@ export const excuteNewDoc = async (
   const executeQueryTool = new QuerySqlTool(db);
 
   // 執行項目資訊的SQL查詢
-  const subjectResult = await executeQueryTool.invoke(
-    subjectSqlQueryStatement
-  );
-  
+  const subjectResult = await executeQueryTool.invoke(subjectSqlQueryStatement);
+
   const parsedSubjectResult = JSON.parse(subjectResult);
-  const subjectMappedData = Object.keys(
-    parsedSubjectResult[0]
-  ).map((item, key) => {
-    return {
-      Title: mapTable.subjectMap[item],
-      Content: parsedSubjectResult[0][item],
-    };
-  });
+  const subjectMappedData = Object.keys(parsedSubjectResult[0]).map(
+    (item, key) => {
+      return {
+        Title: mapTable.subjectMap[item],
+        Content: parsedSubjectResult[0][item],
+      };
+    }
+  );
 
   //手動寫死push生成項目進來
-  subjectMappedData.push(
-    { Title: "生成項目", Content: "基本資料、資產負債分析、財務比率分析" },
+  subjectMappedData.push({
+    Title: "生成項目",
+    Content: "基本資料、資產負債分析、財務比率分析",
+  });
+
+  // 執行公司基本資料的SQL查詢
+  const companyProfileResult = await executeQueryTool.invoke(
+    companyProfileSqlQueryStatement
+  );
+  const companyEnProfileResult = await executeQueryTool.invoke(
+    companyEnProfileSqlQueryStatement
   );
 
-   // 執行公司基本資料的SQL查詢
-   const companyProfileResult = await executeQueryTool.invoke(
-    companyProfileSqlQueryStatement
+  const companyOtherProfileResult = await executeQueryTool.invoke(
+    companyOtherProfileSqlQueryStatement
   );
 
   const parsedCompanyProfileResult = JSON.parse(companyProfileResult);
+  const parsedCompanyEnProfileResult = JSON.parse(companyEnProfileResult);
+  const parsedCompanyOtherProfileResult = JSON.parse(companyOtherProfileResult);
+  console.log('parsedCompanyOtherProfileResult=====',parsedCompanyOtherProfileResult);
+  
   const companyProfileMappedData = Object.keys(
     parsedCompanyProfileResult[0]
   ).map((item, key) => {
+    if (item === "full_name_zhtw") {
+      companyNameTitle = `${parsedCompanyProfileResult[0][item]}授信報告`;
+    }
 
-    if(typeof parsedCompanyProfileResult[0][item] === 'number'){
+    if (typeof parsedCompanyProfileResult[0][item] === "number") {
       return {
         Title: mapTable.companyProfileMap[item],
         Content: parsedCompanyProfileResult[0][item].toLocaleString(),
       };
-    }else{
+    } else {
       return {
         Title: mapTable.companyProfileMap[item],
         Content: parsedCompanyProfileResult[0][item],
@@ -102,12 +120,20 @@ export const excuteNewDoc = async (
     }
   });
 
+  const companyEnProfileMappedData = Object.keys(
+    parsedCompanyEnProfileResult[0]
+  ).map((item, key) => {
+    return {
+      Title: mapTable.companyEnProfileMap[item],
+      Content: parsedCompanyEnProfileResult[0][item],
+    };
+  });
+
   // 執行資產負債分析的SQL查詢
   const balanceSheetResult = await executeQueryTool.invoke(
     balanceSheetSqlQueryStatement
   );
   const parsedBalanceSheetResult = JSON.parse(balanceSheetResult);
-
 
   let balanceSheetMappedData: {
     Q1: TableCellDataType[];
@@ -126,18 +152,18 @@ export const excuteNewDoc = async (
       case 1:
         const Q1Data = Object.keys(item).map((it, key) => {
           // 將數字轉換成千分位格式，並轉成string格式
-          const formattedNumber = item[it].toLocaleString(); 
+          const formattedNumber = item[it].toLocaleString();
 
           return {
             Title: mapTable.balanceSheetMap[it],
-            Content:formattedNumber,
+            Content: formattedNumber,
           };
         });
         balanceSheetMappedData.Q1 = Q1Data;
         break;
       case 2:
         const Q2Data = Object.keys(item).map((it, key) => {
-          const formattedNumber = item[it].toLocaleString(); 
+          const formattedNumber = item[it].toLocaleString();
 
           return {
             Title: mapTable.balanceSheetMap[it],
@@ -148,18 +174,18 @@ export const excuteNewDoc = async (
         break;
       case 3:
         const Q3Data = Object.keys(item).map((it, key) => {
-          const formattedNumber = item[it].toLocaleString(); 
+          const formattedNumber = item[it].toLocaleString();
 
           return {
             Title: mapTable.balanceSheetMap[it],
-            Content:formattedNumber,
+            Content: formattedNumber,
           };
         });
         balanceSheetMappedData.Q3 = Q3Data;
         break;
       case 4:
         const Q4Data = Object.keys(item).map((it, key) => {
-          const formattedNumber = item[it].toLocaleString(); 
+          const formattedNumber = item[it].toLocaleString();
 
           return {
             Title: mapTable.balanceSheetMap[it],
@@ -182,7 +208,6 @@ export const excuteNewDoc = async (
   const financialRatiosMappedData = Object.keys(
     parsedFinancialRatiosResult[0]
   ).map((item, key) => {
-    
     return {
       Title: mapTable.financialRatiosMap[item],
       Content: parsedFinancialRatiosResult[0][item],
@@ -209,7 +234,7 @@ export const excuteNewDoc = async (
   // 組成項目資訊
   // 生成項目為固定的：基本資料、資產負債分析、財務比率分析
   const SubjectDummyArr = [
-    { Title: "測試標的", Content: 'subjectCompanyName' },
+    { Title: "測試標的", Content: "subjectCompanyName" },
     { Title: "生成項目", Content: "基本資料、資產負債分析、財務比率分析" },
   ];
 
@@ -736,8 +761,206 @@ export const excuteNewDoc = async (
     }
   );
 
-  // 公司基本資料-基本資料表-英文資訊：之後補
+  // 公司基本資料-基本資料表：這裡整理出第一列標頭
+  const CompanyEnInformationRow = [
+    new TableRow({
+      children: [
+        new TableCell({
+          width: {
+            size: 2000,
+            type: "dxa",
+          },
+          borders: {
+            top: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+            bottom: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+            left: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+            right: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+          },
+          children: [
+            new Paragraph({
+              spacing: {
+                before: 100,
+                after: 100,
+              },
+              indent: {
+                left: 200,
+                right: 200,
+              },
+              children: [
+                new TextRun({
+                  text: "項目",
+                  size: 26,
+                }),
+              ],
+            }),
+          ],
+          verticalAlign: VerticalAlignTable.CENTER,
+        }),
+        new TableCell({
+          width: {
+            size: 7000,
+            type: "dxa",
+          },
+          borders: {
+            top: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+            bottom: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+            left: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+            right: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+          },
+          children: [
+            new Paragraph({
+              spacing: {
+                before: 100,
+                after: 100,
+              },
+              indent: {
+                left: 200,
+                right: 200,
+              },
+              children: [
+                new TextRun({
+                  text: "英文資訊",
+                  size: 26,
+                }),
+              ],
+            }),
+          ],
 
+          verticalAlign: VerticalAlignTable.CENTER,
+        }),
+      ],
+    }),
+  ];
+
+  // 公司基本資料-基本資料表-英文資訊：之後補
+  const CompanyEnInformationContentArray = companyEnProfileMappedData.map(
+    (item) => {
+      const content = [
+        new TableCell({
+          width: { size: 2000 },
+          borders: {
+            top: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+            bottom: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+            left: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+            right: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+          },
+          children: [
+            new Paragraph({
+              spacing: {
+                before: 100,
+                after: 100,
+              },
+              indent: {
+                left: 200,
+                right: 200,
+              },
+              children: [
+                new TextRun({
+                  text: item.Title,
+                  size: 24,
+                }),
+              ],
+            }),
+          ],
+        }),
+        new TableCell({
+          width: { size: 7000 },
+          borders: {
+            top: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+            bottom: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+            left: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+            right: {
+              style: BorderStyle.SINGLE,
+              size: 14,
+              color: "000000",
+            },
+          },
+          children: [
+            new Paragraph({
+              spacing: {
+                before: 100,
+                after: 100,
+              },
+              indent: {
+                left: 200,
+                right: 200,
+              },
+              children: [
+                new TextRun({
+                  text: item.Content,
+                  size: 24,
+                }),
+              ],
+            }),
+          ],
+        }),
+      ];
+
+      return new TableRow({
+        children: content,
+      });
+    }
+  );
   // 資產負債：整理出第一列表頭
   const BalanceSheetTitleRow = [
     new TableRow({
@@ -1437,6 +1660,10 @@ export const excuteNewDoc = async (
   const CompanyInformationFinalArray = CompanyInformationRow.concat(
     CompanyInformationContentArray
   );
+
+  const CompanyEnInformationFinalArray = CompanyEnInformationRow.concat(
+    CompanyEnInformationContentArray
+  );
   // 項目資訊
   const SubjectFinalArray = SubjectTitleRow.concat(SubjectContentArray);
   // 資產負債 Q1~Q4
@@ -1462,6 +1689,16 @@ export const excuteNewDoc = async (
     sections: [
       {
         children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: companyNameTitle,
+                size: 48,
+                color: "000000",
+              }),
+            ],
+          }),
           new Paragraph({
             spacing: {
               before: 100,
@@ -1519,6 +1756,49 @@ export const excuteNewDoc = async (
             rows: CompanyInformationFinalArray,
           }),
           new Paragraph({ children: [new TextRun({ break: 2 })] }),
+          new Table({
+            layout: TableLayoutType.FIXED,
+            width: {
+              size: 8000,
+              type: "dxa",
+            },
+            rows: CompanyEnInformationFinalArray,
+          }),
+          new Paragraph({ children: [new TextRun({ break: 2 })] }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "經營團隊", size: 26, color: "000000", bold: true,  }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: parsedCompanyOtherProfileResult[0].management_team, size: 24, color: "000000" }),
+            ],
+          }),
+          new Paragraph({ children: [new TextRun({ break: 1 })] }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "公司變更", size: 26, color: "000000", bold: true, }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: parsedCompanyOtherProfileResult[0].registration_change_record, size: 24, color: "000000" }),
+            ],
+          }),
+          new Paragraph({ children: [new TextRun({ break: 1 })] }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: "投資項目", size: 26, color: "000000", bold: true,  }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: parsedCompanyOtherProfileResult[0].investment_projects, size: 24, color: "000000" }),
+            ],
+          }),
+          new Paragraph({ children: [new TextRun({ break: 1 })] }),
+
           new Paragraph({
             spacing: {
               before: 100,
@@ -1652,11 +1932,11 @@ export const excuteNewDoc = async (
   });
 
   // 重複呼叫Packer.toBuffer會造成doc變動，造成後續buffer產出的文件會損毀，要注意
-  // await Packer.toBuffer(doc).then((buffer) => {
-  //   fs.writeFileSync("My Document.docx", buffer);
-  // });
+  await Packer.toBuffer(doc).then((buffer) => {
+    fs.writeFileSync("My Document.docx", buffer);
+  });
 
-
-  const buffer = await Packer.toBuffer(doc);
-  return buffer;
+  console.log("----finish-----");
+  // const buffer = await Packer.toBuffer(doc);
+  // return buffer;
 };
