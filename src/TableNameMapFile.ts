@@ -30,6 +30,16 @@ export const mapTable = {
     avg_60d_price: "60日平均價格",
     avg_60d_volume: "60日平均成交量"
   },
+  companyEnProfileMap: {
+    full_name_enus: "公司英文全名",
+    short_name_enus: "公司英文簡稱",
+    address_enus: "公司英文地址",
+  },
+  companyOtherProfileMap: {
+    management_team : "經營團隊",
+    registration_change_record: "公司變更",
+    investment_projects : "投資項目",
+  },
   balanceSheetMap: {
     year: "年度",
     quarter: "季度",
