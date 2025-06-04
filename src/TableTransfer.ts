@@ -1932,11 +1932,11 @@ export const excuteNewDoc = async (
   });
 
   // 重複呼叫Packer.toBuffer會造成doc變動，造成後續buffer產出的文件會損毀，要注意
-  await Packer.toBuffer(doc).then((buffer) => {
-    fs.writeFileSync("My Document.docx", buffer);
-  });
+  // await Packer.toBuffer(doc).then((buffer) => {
+  //   fs.writeFileSync("My Document.docx", buffer);
+  // });
 
   console.log("----finish-----");
-  // const buffer = await Packer.toBuffer(doc);
-  // return buffer;
+  const buffer = await Packer.toBuffer(doc);
+  return buffer;
 };
