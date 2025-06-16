@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node --experimental-specifier-resolution=node dist/index.js",
     "build": "tsc",
-    "dev": "tsc -w",
+    "dev": "node dist/index.js",
     "clean": "rm -rf dist"
   },
   "dependencies": {

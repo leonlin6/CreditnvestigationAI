@@ -19,7 +19,7 @@ import {
   AlignmentType,
 } from "docx";
 import { QuerySqlTool } from "langchain/tools/sql";
-import { mapTable } from "./TableNameMapFile.js";
+import { mapTable } from "../mappings/tableMapping.js";
 import { resolve } from "path";
 
 // 定義TableCellDataType的interface
@@ -98,7 +98,6 @@ export const excuteNewDoc = async (
   const parsedCompanyProfileResult = JSON.parse(companyProfileResult);
   const parsedCompanyEnProfileResult = JSON.parse(companyEnProfileResult);
   const parsedCompanyOtherProfileResult = JSON.parse(companyOtherProfileResult);
-  console.log('parsedCompanyOtherProfileResult=====',parsedCompanyOtherProfileResult);
   
   const companyProfileMappedData = Object.keys(
     parsedCompanyProfileResult[0]
@@ -1936,7 +1935,6 @@ export const excuteNewDoc = async (
   //   fs.writeFileSync("My Document.docx", buffer);
   // });
 
-  console.log("----finish-----");
   const buffer = await Packer.toBuffer(doc);
   return buffer;
 };
