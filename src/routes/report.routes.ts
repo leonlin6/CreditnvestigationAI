@@ -1,8 +1,10 @@
 import express from "express";
-import { getReport, getCompanyNames } from "../controllers/reportController.js";
+import {
+  getReport,
+  getCompanyNames,
+} from "../controllers/report.controller.js";
 import { SqlDatabase } from "langchain/sql_db";
-import { DataSource } from "typeorm";
-import { DataSourceOptions } from "typeorm";
+import { DataSource, DataSourceOptions } from "typeorm";
 
 const router = express.Router();
 const dbConfig: DataSourceOptions = {

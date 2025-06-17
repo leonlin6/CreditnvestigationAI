@@ -50,17 +50,17 @@ const GenerateReportAnnotation = Annotation.Root({
 const chapters = ["financial_ratios"];
 
 // Initialize the LangChain model
-const chatModel = new ChatOllama({
-  baseUrl: process.env.NGROK_URL,
-  model: "llama4:latest",
-  temperature: 0.3,
-});
-
-// const chatModel = new ChatOpenAI({
-//   modelName: "gpt-4o-mini",
+// const chatModel = new ChatOllama({
+//   baseUrl: process.env.NGROK_URL,
+//   model: "llama4:latest",
 //   temperature: 0.3,
-//   openAIApiKey: process.env.OPENAI_API_KEY,
 // });
+
+const chatModel = new ChatOpenAI({
+  modelName: "gpt-4o-mini",
+  temperature: 0.3,
+  openAIApiKey: process.env.OPENAI_API_KEY,
+});
 
 // set the sql configure
 const dbConfig: DataSourceOptions = {
