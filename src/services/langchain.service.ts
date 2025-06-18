@@ -199,7 +199,7 @@ const graph = new StateGraph(GenerateReportAnnotation)
   .addEdge("import_into_container", "__end__")
   .compile();
 
-export const establishReport = async (
+const establishReport = async (
   year: number,
   gui_no: string,
   db: SqlDatabase
@@ -229,3 +229,5 @@ export const establishReport = async (
     }
   }
 };
+
+export { establishReport };
